@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Netflix Content Analysis Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chosen Palette: Netflix Red & Dark -->
+    <!-- Application Structure Plan: The application is designed as a single-page dashboard with a thematic structure. A sticky navigation bar allows users to jump to specific sections: an initial overview with key stats, a deep-dive into content types, a geographical distribution analysis, and an exploration of audience targeting over time. This non-linear, thematic structure was chosen over a linear report format to empower users to explore the data based on their interests, making the insights more accessible and engaging. Key interactions include filtering charts by content type, country, and audience segment to facilitate discovery. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: Total Movies vs. TV Shows. Goal: Inform proportion. Viz: Donut Chart. Interaction: Tooltip on hover shows counts. Justification: Best for part-to-whole comparison. Library: Chart.js.
+        - Report Info: Content count by country. Goal: Compare distribution. Viz: Horizontal Bar Chart (Top 10). Interaction: Dropdown to filter data by country. Justification: Clear comparison of categorical data. Library: Chart.js.
+        - Report Info: Content added over time. Goal: Show change/trends. Viz: Vertical Bar Chart. Interaction: Clickable buttons to filter by decade. Justification: Excellent for showing distribution over time; buttons provide easy filtering. Library: Chart.js.
+        - Report Info: Target audience per country. Goal: Organize/Compare. Viz: Grouped Bar Chart instead of a static heatmap. Interaction: Buttons to select an audience segment, which updates the chart. Justification: More interactive and mobile-friendly than a large heatmap, breaking down complex data into user-driven views. Library: Chart.js.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 400px;
+            max-height: 50vh;
+        }
+        @media (max-width: 768px) {
+            .chart-container {
+                height: 350px;
+                max-height: 60vh;
+            }
+        }
+        .netflix-red { color: #E50914; }
+        .netflix-bg { background-color: #E50914; }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <header class="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-50">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <span class="font-bold text-xl netflix-red">NETFLIX</span>
+                    <span class="font-semibold text-xl text-gray-700 ml-2">Analysis</span>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="#overview" class="text-gray-600 hover:netflix-red px-3 py-2 rounded-md text-sm font-medium">Overview</a>
+                        <a href="#distribution" class="text-gray-600 hover:netflix-red px-3 py-2 rounded-md text-sm font-medium">Distribution</a>
+                        <a href="#timeline" class="text-gray-600 hover:netflix-red px-3 py-2 rounded-md text-sm font-medium">Timeline</a>
+                        <a href="#audience" class="text-gray-600 hover:netflix-red px-3 py-2 rounded-md text-sm font-medium">Audience</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto p-4 sm:p-6 lg:p-8">
+        
+        <section id="overview" class="py-12">
+            <h1 class="text-3xl font-bold text-center mb-2">Dashboard Overview</h1>
+            <p class="text-center text-gray-600 mb-10 max-w-2xl mx-auto">An interactive look into the Netflix content catalog, exploring distribution, historical trends, and audience targeting across the globe.</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-lg font-semibold text-gray-500 mb-2">Total Titles</h3>
+                    <p id="total-titles" class="text-4xl font-bold">8,807</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-lg font-semibold text-gray-500 mb-2">Movies</h3>
+                    <p id="movie-count" class="text-4xl font-bold">6,131</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-lg font-semibold text-gray-500 mb-2">TV Shows</h3>
+                    <p id="tv-count" class="text-4xl font-bold">2,676</p>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-md mt-8">
+                <h2 class="text-xl font-bold text-center mb-4">Content Type Breakdown</h2>
+                <p class="text-center text-gray-600 mb-6 max-w-2xl mx-auto">The platform heavily favors movies, which constitute the majority of the content library. This chart shows the proportional split between movies and TV shows available.</p>
+                <div class="chart-container" style="max-width: 400px; height: 300px;">
+                    <canvas id="contentTypeChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <section id="distribution" class="py-12">
+            <h2 class="text-3xl font-bold text-center mb-2">Geographical Distribution</h2>
+            <p class="text-center text-gray-600 mb-10 max-w-2xl mx-auto">This section explores where Netflix content is produced. While the United States dominates, countries like India and the UK are significant contributors. Use the dropdown to highlight a specific country.</p>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                 <div class="flex justify-center mb-4">
+                    <select id="country-filter" class="border rounded p-2">
+                        <option value="All">All Top 10 Countries</option>
+                    </select>
+                </div>
+                <div class="chart-container">
+                    <canvas id="countryChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <section id="timeline" class="py-12">
+            <h2 class="text-3xl font-bold text-center mb-2">Content Release Timeline</h2>
+            <p class="text-center text-gray-600 mb-10 max-w-2xl mx-auto">Netflix's library contains content spanning decades, but there's a clear acceleration in titles released in recent years, reflecting the boom in production. Filter by decade to see the trend more clearly.</p>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                 <div id="decade-buttons" class="flex flex-wrap justify-center gap-2 mb-6">
+                    <button data-decade="all" class="bg-gray-200 px-4 py-2 rounded-md font-semibold text-sm">All Time</button>
+                    <button data-decade="2020" class="bg-gray-200 px-4 py-2 rounded-md font-semibold text-sm">2020s</button>
+                    <button data-decade="2010" class="bg-gray-200 px-4 py-2 rounded-md font-semibold text-sm">2010s</button>
+                    <button data-decade="2000" class="bg-gray-200 px-4 py-2 rounded-md font-semibold text-sm">2000s</button>
+                    <button data-decade="1990" class="bg-gray-200 px-4 py-2 rounded-md font-semibold text-sm">1990s & Earlier</button>
+                </div>
+                <div class="chart-container">
+                    <canvas id="releaseYearChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <section id="audience" class="py-12">
+            <h2 class="text-3xl font-bold text-center mb-2">Target Audience Analysis</h2>
+            <p class="text-center text-gray-600 mb-10 max-w-2xl mx-auto">This analysis reveals how content is targeted towards different audience segments in major markets. Select an audience group to see which countries produce the most content for that demographic.</p>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <div id="audience-buttons" class="flex flex-wrap justify-center gap-2 mb-6">
+                    <button data-audience="Adults" class="bg-gray-200 px-4 py-2 rounded-md font-semibold text-sm">Adults</button>
+                    <button data-audience="Teens" class="bg-gray-200 px-4 py-2 rounded-md font-semibold text-sm">Teens</button>
+                    <button data-audience="Kids" class="bg-gray-200 px-4 py-2 rounded-md font-semibold text-sm">Kids</button>
+                    <button data-audience="Mature" class="bg-gray-200 px-4 py-2 rounded-md font-semibold text-sm">Mature</button>
+                </div>
+                <div class="chart-container">
+                    <canvas id="audienceChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+    </main>
+    
+    <footer class="bg-gray-800 text-white text-center p-4 mt-8">
+        <p>Netflix Data Analysis Project</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            const data = {
+                contentTypes: { 'Movies': 6131, 'TV Shows': 2676 },
+                countries: [
+                    { country: 'United States', count: 2818 },
+                    { country: 'India', count: 972 },
+                    { country: 'United Kingdom', count: 419 },
+                    { country: 'Japan', count: 245 },
+                    { country: 'South Korea', count: 199 },
+                    { country: 'Canada', count: 181 },
+                    { country: 'Spain', count: 145 },
+                    { country: 'France', count: 124 },
+                    { country: 'Mexico', count: 110 },
+                    { country: 'Egypt', count: 106 }
+                ],
+                releaseYears: [
+                    { year: 2018, count: 1147 }, { year: 2017, count: 1032 }, { year: 2019, count: 1030 },
+                    { year: 2020, count: 953 }, { year: 2016, count: 902 }, { year: 2021, count: 700 },
+                    { year: 2015, count: 560 }, { year: 2014, count: 352 }, { year: 2013, count: 288 },
+                    { year: 2012, count: 237 }, { year: 2011, count: 185 }, { year: 2010, count: 153 },
+                    { year: 2009, count: 117 }, { year: 2008, count: 99 }, { year: 2005, count: 68 },
+                    { year: 1999, count: 30 }, { year: 1997, count: 25 }, { year: 1945, count: 5 }
+                ],
+                audienceData: {
+                    'Adults': [
+                        { country: 'United States', percentage: 35 }, { country: 'India', percentage: 15 },
+                        { country: 'United Kingdom', percentage: 8 }, { country: 'Canada', percentage: 5 },
+                        { country: 'France', percentage: 4 }
+                    ],
+                    'Teens': [
+                        { country: 'United States', percentage: 40 }, { country: 'India', percentage: 12 },
+                        { country: 'Japan', percentage: 9 }, { country: 'South Korea', percentage: 7 },
+                        { country: 'United Kingdom', percentage: 6 }
+                    ],
+                    'Kids': [
+                        { country: 'United States', percentage: 55 }, { country: 'Canada', percentage: 8 },
+                        { country: 'United Kingdom', percentage: 7 }, { country: 'Japan', percentage: 5 },
+                        { country: 'India', percentage: 4 }
+                    ],
+                    'Mature': [
+                         { country: 'India', percentage: 25 }, { country: 'United States', percentage: 20 },
+                         { country: 'Egypt', percentage: 9 }, { country: 'Mexico', percentage: 7 },
+                         { country: 'Spain', percentage: 6 }
+                    ]
+                }
+            };
+            
+            let charts = {};
+            const netflixRed = '#E50914';
+            const netflixRedTransparent = 'rgba(229, 9, 20, 0.7)';
+
+            function initCharts() {
+                renderContentTypeChart();
+                renderCountryChart();
+                renderReleaseYearChart();
+                renderAudienceChart('Adults');
+                setupEventListeners();
+            }
+
+            function renderContentTypeChart() {
+                const ctx = document.getElementById('contentTypeChart').getContext('2d');
+                charts.contentType = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Movies', 'TV Shows'],
+                        datasets: [{
+                            data: [data.contentTypes.Movies, data.contentTypes['TV Shows']],
+                            backgroundColor: [netflixRed, '#333'],
+                            borderColor: '#f3f4f6',
+                            borderWidth: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom' }
+                        }
+                    }
+                });
+            }
+
+            function renderCountryChart(highlightCountry = 'All') {
+                const ctx = document.getElementById('countryChart').getContext('2d');
+                const countryData = data.countries;
+                const labels = countryData.map(c => c.country);
+                const values = countryData.map(c => c.count);
+                const backgroundColors = labels.map(label => label === highlightCountry ? netflixRed : '#333');
+
+                if (charts.country) charts.country.destroy();
+                charts.country = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Number of Titles',
+                            data: values,
+                            backgroundColor: backgroundColors,
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            x: { beginAtZero: true }
+                        }
+                    }
+                });
+            }
+
+            function renderReleaseYearChart(decade = 'all') {
+                const ctx = document.getElementById('releaseYearChart').getContext('2d');
+                let filteredYears;
+                
+                if (decade === 'all') {
+                    filteredYears = data.releaseYears;
+                } else if (decade === '1990') {
+                    filteredYears = data.releaseYears.filter(item => item.year < 2000);
+                }
+                else {
+                    const startYear = parseInt(decade);
+                    const endYear = startYear + 9;
+                    filteredYears = data.releaseYears.filter(item => item.year >= startYear && item.year <= endYear);
+                }
+                
+                filteredYears.sort((a, b) => a.year - b.year);
+
+                const labels = filteredYears.map(d => d.year);
+                const values = filteredYears.map(d => d.count);
+
+                if (charts.releaseYear) charts.releaseYear.destroy();
+                charts.releaseYear = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Titles Released',
+                            data: values,
+                            backgroundColor: netflixRedTransparent,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { ticks: { maxRotation: 90, minRotation: 45 } },
+                            y: { beginAtZero: true }
+                        }
+                    }
+                });
+            }
+
+            function renderAudienceChart(audience) {
+                const ctx = document.getElementById('audienceChart').getContext('2d');
+                const audienceData = data.audienceData[audience];
+                const labels = audienceData.map(d => d.country);
+                const values = audienceData.map(d => d.percentage);
+                
+                if (charts.audience) charts.audience.destroy();
+                charts.audience = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: `% of Content for ${audience}`,
+                            data: values,
+                            backgroundColor: '#333',
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) { return value + '%' }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            function setupEventListeners() {
+                const countryDropdown = document.getElementById('country-filter');
+                data.countries.forEach(c => {
+                    const option = document.createElement('option');
+                    option.value = c.country;
+                    option.textContent = c.country;
+                    countryDropdown.appendChild(option);
+                });
+                countryDropdown.addEventListener('change', (e) => {
+                    renderCountryChart(e.target.value);
+                });
+
+                const decadeButtons = document.querySelectorAll('#decade-buttons button');
+                decadeButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        decadeButtons.forEach(btn => btn.classList.replace('netflix-bg', 'bg-gray-200'));
+                        button.classList.add('netflix-bg');
+                        button.classList.remove('bg-gray-200');
+                        renderReleaseYearChart(button.dataset.decade);
+                    });
+                });
+                decadeButtons[0].classList.add('netflix-bg');
+                decadeButtons[0].classList.remove('bg-gray-200');
+
+                const audienceButtons = document.querySelectorAll('#audience-buttons button');
+                audienceButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        audienceButtons.forEach(btn => btn.classList.replace('netflix-bg', 'bg-gray-200'));
+                        button.classList.add('netflix-bg');
+                        button.classList.remove('bg-gray-200');
+                        renderAudienceChart(button.dataset.audience);
+                    });
+                });
+                 audienceButtons[0].classList.add('netflix-bg');
+                 audienceButtons[0].classList.remove('bg-gray-200');
+            }
+
+            initCharts();
+        });
+    </script>
+</body>
+</html>
